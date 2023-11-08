@@ -1,6 +1,6 @@
 import cv2
 
-FILENAME="media/test.mp4"
+FILENAME="media/snowman_nobars.mp4"
 COUNTDOWN="media/countdown.mp4"
 # def playVideo():
 #     cv2.namedWindow("Empty Window", cv2.WINDOW_NORMAL)
@@ -13,7 +13,7 @@ COUNTDOWN="media/countdown.mp4"
 #     cv2.destroyAllWindows()
 #     playVideo()
 
-KINGS_HALL={"fullscreen_width":1024,"fullscreen_height":int(1024/16*9),"fullscreen_x_offset":-1024,"fullscreen_y_offset":630}
+KINGS_HALL={"zoom":0.75,"fullscreen_x_offset":-1024,"fullscreen_y_offset":630}
 
 
 KEY_RIGHT_CODE=2555904
@@ -26,6 +26,7 @@ class Player:
         self.frame_noplaying:bool=False
         self.cap=None
         self.length_frames=-1
+        self.fps=-1
 
 
 
@@ -34,6 +35,11 @@ class Player:
         self.frame_no=0
         self.cap=cv2.VideoCapture(self.filename)
         self.length_frames=int(self.cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        self.fps = self.cap.get(cv2.CAP_PROP_FPS)
+        self.width  = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+
+        # cv2.CV_CAP_PROP_FRAME_WIDTH)   # float `width`
+        self.height = int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT) ) # float `height`
 
     @staticmethod
     def wait_for(ordinal):
@@ -45,7 +51,7 @@ class Player:
 
 
 
-    def play_clip(self,fullscreen_width=1920,fullscreen_height=1080,fullscreen_x_offset=-1920,fullscreen_y_offset=630,supress_second_monitor=False,last_frame=None)->bool:
+    def play_clip(self,zoom=0.5,fullscreen_x_offset=-1920,fullscreen_y_offset=630,supress_second_monitor=False,last_frame=None)->bool:
         self.playing=True
         if self.cap is None:
             self.reset()
@@ -59,10 +65,7 @@ class Player:
             
             if self.playing:
                 ret,frame=self.cap.read()
-                width  = self.cap.get(cv2.CAP_PROP_FRAME_WIDTH)#
-                    
-                   # cv2.CV_CAP_PROP_FRAME_WIDTH)   # float `width`
-                height = self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT)  # float `height`
+
                 self.frame_no+=1
 
                 if last_frame is not None and self.frame_no>=last_frame:
@@ -77,9 +80,13 @@ class Player:
                         capname="CAP"
                         
                         cv2.namedWindow(capname, cv2.WND_PROP_FULLSCREEN)
+                        
                         cv2.moveWindow(capname, fullscreen_x_offset, fullscreen_y_offset)
                         cv2.setWindowProperty(capname, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
-                        cv2.resizeWindow(capname, fullscreen_width, fullscreen_height)
+                        cv2.resizeWindow(capname, int(self.width*zoom), int(self.height*zoom))
+
+
+
                         cv2.imshow(capname, frame) 
 
 
@@ -88,14 +95,22 @@ class Player:
 
                     controlwin="CTRL"
                     cv2.namedWindow(controlwin,cv2.WINDOW_NORMAL)
-                    cv2.resizeWindow(controlwin,int(width),int(height))
+                    cv2.resizeWindow(controlwin,int(self.width),int(self.height))
 
                     proportion=self.frame_no/self.length_frames
 
-                    propx=int((width-5)*proportion)
+                    propx=int((self.width-5)*proportion)
                     propxplus=int(propx+5)
 
-                    cv2.rectangle(frame,(propx,int(0)),(propxplus,int(height-1)),(255,255,0),3)
+                    seconds_in=self.frame_no/self.fps
+                    whole_secs=int(seconds_in)
+                    fraction=int((seconds_in-whole_secs)*100)
+                    minutes=int(whole_secs/60)
+                    seconds=whole_secs-60*minutes
+
+                    cv2.putText(frame,f"{minutes:02}:{seconds:02}:{fraction:02}",(20,200),0,4,(255,255,0),4)
+
+                    cv2.rectangle(frame,(propx,int(0)),(propxplus,int(self.height-1)),(255,255,0),3)
 
 
                     cv2.imshow(controlwin,frame)
