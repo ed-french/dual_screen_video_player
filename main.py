@@ -1,5 +1,5 @@
 import cv2
-from flask import Flask,send_file
+from flask import Flask,send_file,Response
 import threading
 
 FILENAME="media/snowman_nobars.mp4"
@@ -123,7 +123,7 @@ class Player:
                     
                     seconds_in=self.frame_no/self.fps
                     if self.title=="Countdown":
-                        seconds_in=self.length_frames/self.fps-seconds_in+1
+                        seconds_in=self.length_frames/self.fps-seconds_in+1.0
                         
                     
                     whole_secs=int(seconds_in)
@@ -222,7 +222,8 @@ class Player:
     
 
 
-app=Flask(__name__)
+app=Flask(__name__,
+          static_folder="static")
 @app.route("/")
 def main():
     return send_file("webif.html")
@@ -239,30 +240,30 @@ def timecode():
             <div style="width:{g_player.proportion*100}%" class="progressbar"></div>
           </div>  
     </div>"""
-    return raw
+    return raw #Response(500,"arghhh!")
 
 @app.route("/pause")
 def pause():
     g_player.pause_requested=True
-    return   """<button 
+    return   """        <button class="active"
+                            accesskey="P"
                             hx-get="/pause"
                             hx-target="this"
                             hx-trigger="click"
-                            accesskey="p"
                             hx-swap="outerHTML">
-            Pause
+            <img class="icon" src="/static/playpause.png">
         </button>"""
 
 @app.route("/restart")
 def restart():
     g_player.restart_requested=True
-    return """<button class="active"
+    return """       <button class="active"
                 accesskey="R"
                 hx-get="/restart"
                 hx-target="this"
                 hx-trigger="click"
                 hx-swap="outerHTML">
-            Restart
+                <img class="icon" src="/static/restart.png">
         </button>"""
 
 @app.route("/countdown")
@@ -274,7 +275,7 @@ def countdown():
                 hx-target="this"
                 hx-trigger="click"
                 hx-swap="outerHTML">
-            Countdown
+                <img class="icon" src="/static/countdown.png">
         </button>"""
 
 @app.route("/skip")
@@ -283,13 +284,13 @@ def skip():
 
 
 
-    return """        <button class="active"
+    return """<button class="active"
                     accesskey="S"
                     hx-get="/skip"
                     hx-target="this"
                     hx-trigger="click"
                     hx-swap="outerHTML">
-            Skip
+            <img class="icon" src="/static/skip.svg">
         </button>"""
 
 if __name__=="__main__":
@@ -298,17 +299,26 @@ if __name__=="__main__":
     # Launch server
     server=threading.Thread(target=app.run,daemon=True,kwargs={"host":"0.0.0.0", "port":80})
     server.start()
+
+    countdown_clip=Player(COUNTDOWN,"Countdown")
+    countdown_clip.reset()
+
+
+    main_clip=Player(FILENAME,"Snowman")
+    main_clip.reset()
+
         
     while True:
-        g_player=Player(COUNTDOWN,"Countdown")
+        g_player=countdown_clip
         g_player.reset()
 
-        res=g_player.play_clip(last_frame=30*11,supress_second_monitor=True)
+        res=g_player.play_clip(last_frame=30*10,supress_second_monitor=True)
         if not res:
             break
 
-        g_player=Player(FILENAME,"Snowman")
+        g_player=main_clip
         g_player.reset()
+ 
         res=g_player.play_clip(**KINGS_HALL)
         if not res:
             break

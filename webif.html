@@ -28,22 +28,44 @@
         }
         button
         {
-            width:14vw;
-            height:14vw;
+            width:18vw;
+            height:18vw;
             margin:3vw;
             color:white;
             background-color:green;
             font-size:2.5vw;
+        
         }
         
         #timecode
         {
             font-family:monospace;
-            font-size:19.5vw;
+            font-size:22vw;
         }
         #title
         {
             font-size:10vw;
+        }
+        #server_unavailable
+        {
+            display:none;
+            position:absolute;
+            top:0px;
+            bottom:100vh;
+            background-color: rgba(0,0,0,0.8);
+            margin:10%;
+            padding:15%;
+            font-size:2vw;
+            width:100%;
+            height:100%;
+        }
+        #unavailable_label
+        {
+            font-size:5vw;
+        }
+        .icon
+        {
+            width:15vw;
         }
     </style>
     <title>Video playback controls</title>
@@ -51,6 +73,9 @@
 
 </head>
 <body>
+    <div id="server_unavailable">
+        <span id="unavailable_label">Server unavailable, retrying...</span>
+    </div>
     <h1>Video playback controls</h1>
 
 
@@ -68,48 +93,79 @@
 
 
     <div id="controls">
-        <button class="active"
-                            accesskey="P"
-                            hx-get="/pause"
+        <button hx-get="/pause"
                             hx-target="this"
-                            hx-trigger="click"
+                            hx-trigger="load delay:10ms"
                             hx-swap="outerHTML">
-            Pause
         </button>
-        <button class="active"
-                    accesskey="S"
-                    hx-get="/skip"
+        <button hx-get="/skip"
                     hx-target="this"
-                    hx-trigger="click"
+                    hx-trigger="load delay:10ms"
                     hx-swap="outerHTML">
-            Skip
         </button>
-        <button class="active"
-                accesskey="R"
-                hx-get="/restart"
+        <button hx-get="/restart"
                 hx-target="this"
-                hx-trigger="click"
+                hx-trigger="load delay:10ms"
                 hx-swap="outerHTML">
-            Restart
         </button>
-        <button class="active"
-                accesskey="C"
-                hx-get="/countdown"
+        <button hx-get="/countdown"
                 hx-target="this"
-                hx-trigger="click"
+                hx-trigger="load"
                 hx-swap="outerHTML">
-            Countdown
         </button>
 
     </div>
 <script>
-    document.body.addEventListener('htmx:afterRequest', function (evt) {
-        if (evt.detail.failed)
+
+    function reload_when_page_available()
+    {
+        var url=window.location.href;
+        var client= new XMLHttpRequest();
+        client.onreadystatechange=function()
+        {
+            if (this.readyState==4)
+            {
+                if (this.status==200)
+                {
+                    location.reload();
+                } else {
+                    window.setTimeout(reload_when_page_available,1000);
+                }
+            }
+        };
+        client.open("HEAD", url);
+        client.send();
+    }
+
+    function fail_retry(evt)
+    {
+        if (evt.detail.error)
         {
             console.log("HTMX error detected fetching resource");
+            document.getElementById("server_unavailable").style.display="block";
+            reload_when_page_available();
         }
+    }
+
+    document.body.addEventListener('htmx:afterRequest', function (evt) {
+        
+        fail_retry(evt);
         
     });
+    document.body.addEventListener('htmx:sendError', function (evt) {
+        console.log(evt);
+        fail_retry(evt);
+        
+    });
+    htmx.on("htmx:responseError", function (evt) {
+            console.error("htmx response error");
+                 console.error(evt);
+                 fail_retry(evt);
+             })
+
+
+
+
 </script>
 </body>
 </html>
