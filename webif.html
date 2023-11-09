@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body
+        {
+            margin:0 0 0 0;
+            background-color: black;
+            color:white;
+        }
+        h1 
+        {
+            font-size:medium;
+            font-family:Arial, Helvetica, sans-serif
+        }
+        .progressbar
+        {
+            background-color:red;
+            height:8vw;
+            
+        }
+        .progresscontainer
+        {
+            width:95%;
+            height:10vw;
+            background-color: grey;
+            padding-top:1vw;
+        }
+        button
+        {
+            width:14vw;
+            height:14vw;
+            margin:3vw;
+            color:white;
+            background-color:green;
+            font-size:2.5vw;
+        }
+        
+        #timecode
+        {
+            font-family:monospace;
+            font-size:19.5vw;
+        }
+        #title
+        {
+            font-size:10vw;
+        }
+    </style>
+    <title>Video playback controls</title>
+    <script src="https://unpkg.com/htmx.org@1.9.8"></script>
+
+</head>
+<body>
+    <h1>Video playback controls</h1>
+
+
+
+    <div hx-target="this"
+        hx-get="/timecode"
+        hx-trigger="load delay:200ms"
+        hx-swap="outerHTML">
+            <span>--:--:--</span>
+            <div class="progresscontainer">  
+                <div style="width:99.99%" class="progressbar"></div>
+              </div> 
+    </div>
+
+
+
+    <div id="controls">
+        <button class="active"
+                            accesskey="P"
+                            hx-get="/pause"
+                            hx-target="this"
+                            hx-trigger="click"
+                            hx-swap="outerHTML">
+            Pause
+        </button>
+        <button class="active"
+                    accesskey="S"
+                    hx-get="/skip"
+                    hx-target="this"
+                    hx-trigger="click"
+                    hx-swap="outerHTML">
+            Skip
+        </button>
+        <button class="active"
+                accesskey="R"
+                hx-get="/restart"
+                hx-target="this"
+                hx-trigger="click"
+                hx-swap="outerHTML">
+            Restart
+        </button>
+        <button class="active"
+                accesskey="C"
+                hx-get="/countdown"
+                hx-target="this"
+                hx-trigger="click"
+                hx-swap="outerHTML">
+            Countdown
+        </button>
+
+    </div>
+<script>
+    document.body.addEventListener('htmx:afterRequest', function (evt) {
+        if (evt.detail.failed)
+        {
+            console.log("HTMX error detected fetching resource");
+        }
+        
+    });
+</script>
+</body>
+</html>
