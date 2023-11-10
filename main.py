@@ -16,10 +16,31 @@ COUNTDOWN="media/countdown.mp4"
 #     playVideo()
 
 KINGS_HALL={"zoom":0.75,"fullscreen_x_offset":-1024,"fullscreen_y_offset":630}
+HOME_VGA_TEST={"zoom":0.75,"fullscreen_x_offset":+3000,"fullscreen_y_offset":-30}
 
+ROOM_SPEC=HOME_VGA_TEST
 
 KEY_RIGHT_CODE=2555904
 KEY_LEFT_CODE=2424832
+
+CONTROL_MONITOR_ZOOM=0.75
+
+import socket
+def get_ip():
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    s.settimeout(0)
+    try:
+        # doesn't even have to be reachable
+        s.connect(('10.254.254.254', 1))
+        IP = s.getsockname()[0]
+    except Exception:
+        IP = '127.0.0.1'
+    finally:
+        s.close()
+    return IP
+
+
+IP=get_ip()
 
 class MockPlayer:
     timecode="mm:ss:ff"
@@ -114,12 +135,12 @@ class Player:
 
                     controlwin="CTRL"
                     cv2.namedWindow(controlwin,cv2.WINDOW_NORMAL)
-                    cv2.resizeWindow(controlwin,int(self.width),int(self.height))
+                    cv2.resizeWindow(controlwin,int(self.width*CONTROL_MONITOR_ZOOM),int(self.height*CONTROL_MONITOR_ZOOM))
 
                     self.proportion=self.frame_no/self.length_frames
 
-                    propx=int((self.width-5)*self.proportion)
-                    propxplus=int(propx+5)
+                    propx=int(self.width*self.proportion)
+                    
                     
                     seconds_in=self.frame_no/self.fps
                     if self.title=="Countdown":
@@ -135,8 +156,12 @@ class Player:
 
 
                     cv2.putText(frame,self.timecode,(20,200),0,4,(255,255,0),4)
-
-                    cv2.rectangle(frame,(propx,int(0)),(propxplus,int(self.height-1)),(255,255,0),3)
+                    cv2.putText(frame,IP,(20,int(self.height-100)),0,1,(255,0,0),2)
+                    cv2.putText(frame,"R=restart, S=Skip, SPACE=pause, Q=Back to countdown, Z=exit",(20,int(self.height-50)),0,1,(255,0,0),2)
+                    
+                    
+                    cv2.rectangle(frame,(0,0),(self.width-1,int(self.height/30-1)),(50,50,50),3)
+                    cv2.rectangle(frame,(0,int(0)),(propx,int(self.height/30-1)),(255,255,0),3)
 
 
                     cv2.imshow(controlwin,frame)
@@ -319,7 +344,7 @@ if __name__=="__main__":
         g_player=main_clip
         g_player.reset()
  
-        res=g_player.play_clip(**KINGS_HALL)
+        res=g_player.play_clip(**ROOM_SPEC)
         if not res:
             break
 

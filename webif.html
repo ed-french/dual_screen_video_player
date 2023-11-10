@@ -69,7 +69,8 @@
         }
     </style>
     <title>Video playback controls</title>
-    <script src="https://unpkg.com/htmx.org@1.9.8"></script>
+    <script src="/static/htmx.min.js"></script>
+    <script src="/static/NoSleep.min.js"></script>
 
 </head>
 <body>
@@ -115,8 +116,21 @@
         </button>
 
     </div>
+    <button id="keep_screen_on_btn" style="background-color:red;width:100%;">Click to keep screen on!</button>
 <script>
 
+    
+    var noSleep = new NoSleep();
+
+    var sleep_btn=document.getElementById("keep_screen_on_btn");
+    sleep_btn.addEventListener("click",keep_screen_on);
+
+    function keep_screen_on()
+    {
+        noSleep.enable();
+        d=document.getElementById("keep_screen_on_btn").style.backgroundColor="green";
+        console.log("screen on triggered!");
+    }
     function reload_when_page_available()
     {
         var url=window.location.href;
@@ -163,7 +177,7 @@
                  fail_retry(evt);
              })
 
-
+             
 
 
 </script>
