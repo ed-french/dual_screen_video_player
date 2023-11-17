@@ -1,6 +1,7 @@
 import cv2
-from flask import Flask,send_file,Response
+from flask import Flask,send_file,Response,request
 import threading
+import io
 
 FILENAME="media/snowman_nobars.mp4"
 COUNTDOWN="media/countdown.mp4"
@@ -17,6 +18,7 @@ COUNTDOWN="media/countdown.mp4"
 
 KINGS_HALL={"zoom":0.75,"fullscreen_x_offset":-1024,"fullscreen_y_offset":630}
 HOME_VGA_TEST={"zoom":0.75,"fullscreen_x_offset":+3000,"fullscreen_y_offset":-30}
+HOME_PROJECTOR_TEST={"zoom":0.75,"fullscreen_x_offset":3000,"fullscreen_y_offset":0}
 
 ROOM_SPEC=HOME_VGA_TEST
 
@@ -64,6 +66,7 @@ class Player:
         self.countdown_requested=False
         self.skip_requested=False
         self.title=title
+        self.smallframe=None
 
 
 
@@ -135,11 +138,15 @@ class Player:
 
                     controlwin="CTRL"
                     cv2.namedWindow(controlwin,cv2.WINDOW_NORMAL)
-                    cv2.resizeWindow(controlwin,int(self.width*CONTROL_MONITOR_ZOOM),int(self.height*CONTROL_MONITOR_ZOOM))
+                    ctrlw,ctrlh=int(self.width*CONTROL_MONITOR_ZOOM),int(self.height*CONTROL_MONITOR_ZOOM)
+                    self.smallframe=cv2.resize(frame,(ctrlw,ctrlh))
+                    
+                    cv2.resizeWindow(controlwin,ctrlw,ctrlh)
+
 
                     self.proportion=self.frame_no/self.length_frames
 
-                    propx=int(self.width*self.proportion)
+                    propx=int(ctrlw*self.proportion)
                     
                     
                     seconds_in=self.frame_no/self.fps
@@ -155,16 +162,16 @@ class Player:
                     self.timecode=f"{minutes:02}:{seconds:02}:{fraction:02}"
 
 
-                    cv2.putText(frame,self.timecode,(20,200),0,4,(255,255,0),4)
-                    cv2.putText(frame,IP,(20,int(self.height-100)),0,1,(255,0,0),2)
-                    cv2.putText(frame,"R=restart, S=Skip, SPACE=pause, Q=Back to countdown, Z=exit",(20,int(self.height-50)),0,1,(255,0,0),2)
+                    cv2.putText(self.smallframe,self.timecode,(20,200),0,4,(255,255,0),4)
+                    cv2.putText(self.smallframe,IP,(20,int(ctrlh-100)),0,1,(255,0,0),2)
+                    cv2.putText(self.smallframe,"R=restart, S=Skip, SPACE=pause, Q=Back to countdown, Z=exit",(20,int(ctrlh-50)),0,1,(255,0,0),2)
                     
                     
-                    cv2.rectangle(frame,(0,0),(self.width-1,int(self.height/30-1)),(50,50,50),3)
-                    cv2.rectangle(frame,(0,int(0)),(propx,int(self.height/30-1)),(255,255,0),3)
+                    cv2.rectangle(self.smallframe,(0,0),(ctrlw-1,int(ctrlh/30-1)),(50,50,50),3)
+                    cv2.rectangle(self.smallframe,(0,int(0)),(propx,int(ctrlh/30-1)),(255,255,0),3)
 
 
-                    cv2.imshow(controlwin,frame)
+                    cv2.imshow(controlwin,self.smallframe)
                     
             # Press Q on keyboard to exit 
             fullpress=cv2.waitKeyEx(25)
@@ -233,6 +240,15 @@ class Player:
                     g_player.skip_requested=False
                     break
 
+            elif key == ord('q'):
+                if self.title=="Countdown":
+                    self.cap.set(cv2.CAP_PROP_POS_FRAMES, 0-1)
+                    self.frame_no=0
+                else:
+                    g_player.skip_requested=False
+                    break
+            
+
 
         
   
@@ -269,7 +285,8 @@ def timecode():
 
 @app.route("/pause")
 def pause():
-    g_player.pause_requested=True
+    if not request.query_string=="setup":
+        g_player.pause_requested=True
     return   """        <button class="active"
                             accesskey="P"
                             hx-get="/pause"
@@ -281,7 +298,8 @@ def pause():
 
 @app.route("/restart")
 def restart():
-    g_player.restart_requested=True
+    if not request.query_string=="setup":
+        g_player.restart_requested=True
     return """       <button class="active"
                 accesskey="R"
                 hx-get="/restart"
@@ -293,7 +311,8 @@ def restart():
 
 @app.route("/countdown")
 def countdown():
-    g_player.countdown_requested=True
+    if not request.query_string=="setup":
+        g_player.countdown_requested=True
     return """        <button class="active"
                 accesskey="C"
                 hx-get="/countdown"
@@ -305,7 +324,8 @@ def countdown():
 
 @app.route("/skip")
 def skip():
-    g_player.skip_requested=True
+    if not request.query_string=="setup":
+        g_player.skip_requested=True
 
 
 
@@ -317,6 +337,18 @@ def skip():
                     hx-swap="outerHTML">
             <img class="icon" src="/static/skip.svg">
         </button>"""
+
+
+@app.route("/ctrlframe")
+def ctrlframe():
+    """
+        Return latest smallframe
+    """
+    is_success,buffer=cv2.imencode(".jpg",g_player.smallframe)
+    buff = io.BytesIO(buffer)
+    buff.seek(0)
+    return send_file(buff,"image/jpeg")
+
 
 if __name__=="__main__":
 
@@ -331,6 +363,8 @@ if __name__=="__main__":
 
     main_clip=Player(FILENAME,"Snowman")
     main_clip.reset()
+    # start,extension=FILENAME.rsplit(".",1)
+    # small_clip=Player(start+"_low."+extension,"SnowmanS")
 
         
     while True:
@@ -343,6 +377,8 @@ if __name__=="__main__":
 
         g_player=main_clip
         g_player.reset()
+        # g_smallplayer=small_clip
+        # g_smallplayer.reset()
  
         res=g_player.play_clip(**ROOM_SPEC)
         if not res:
