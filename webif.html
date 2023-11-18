@@ -140,7 +140,9 @@
     function keep_screen_on()
     {
         noSleep.enable();
-        d=document.getElementById("keep_screen_on_btn").style.backgroundColor="green";
+        d=document.getElementById("keep_screen_on_btn")
+        d.style.backgroundColor="green";
+        d.innerText="Screen may stay on!";
         console.log("screen on triggered!");
     }
     function reload_when_page_available()
