@@ -2,6 +2,19 @@ import cv2
 from flask import Flask,send_file,Response,request
 import threading
 import io
+import time
+
+
+
+TEMPO=1.0
+ORIGINAL_FPS=25
+SKIP_ALTERNATE_FRAMES=False
+
+
+
+
+
+
 
 FILENAME="media/snowman_nobars.mp4"
 COUNTDOWN="media/countdown.mp4"
@@ -16,16 +29,20 @@ COUNTDOWN="media/countdown.mp4"
 #     cv2.destroyAllWindows()
 #     playVideo()
 
+USE_LAPTOP_SCREEN=True
+
 KINGS_HALL={"zoom":0.75,"fullscreen_x_offset":-1024,"fullscreen_y_offset":630}
 HOME_VGA_TEST={"zoom":0.75,"fullscreen_x_offset":+3000,"fullscreen_y_offset":-30}
 HOME_PROJECTOR_TEST={"zoom":0.75,"fullscreen_x_offset":3000,"fullscreen_y_offset":0}
+TEST_NO_PROJECTOR={"zoom":0.5,"fullscreen_x_offset":00,"fullscreen_y_offset":0}
 
-ROOM_SPEC=HOME_VGA_TEST
+
+ROOM_SPEC=TEST_NO_PROJECTOR
 
 KEY_RIGHT_CODE=2555904
 KEY_LEFT_CODE=2424832
 
-CONTROL_MONITOR_ZOOM=0.75
+CONTROL_MONITOR_ZOOM=0.25
 
 import socket
 def get_ip():
@@ -95,11 +112,33 @@ class Player:
 
     def play_clip(self,zoom=0.5,fullscreen_x_offset=-1920,fullscreen_y_offset=630,supress_second_monitor=False,last_frame=None)->bool:
 
+
+        seconds_per_frame=1.0/ORIGINAL_FPS/TEMPO*2
+
+        next_frame_due=time.time()
+
         self.playing=True
         if self.cap is None:
             self.reset()
         if (self.cap.isOpened()== False):  
             raise FileNotFoundError()
+
+        if not supress_second_monitor:
+            capname="CAP"
+            
+            cv2.namedWindow(capname, cv2.WND_PROP_FULLSCREEN)
+            
+            cv2.moveWindow(capname, fullscreen_x_offset, fullscreen_y_offset)
+            cv2.setWindowProperty(capname, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+            cv2.resizeWindow(capname, int(self.width*zoom), int(self.height*zoom))
+
+
+
+        controlwin="CTRL"
+        cv2.namedWindow(controlwin,cv2.WINDOW_NORMAL)
+        ctrlw,ctrlh=int(self.width*CONTROL_MONITOR_ZOOM),int(self.height*CONTROL_MONITOR_ZOOM)
+        cv2.resizeWindow(controlwin,ctrlw,ctrlh)  
+        next_frame_due=time.time()+seconds_per_frame             
 
         while True:
             if not self.cap.isOpened():
@@ -107,8 +146,21 @@ class Player:
                 break
             
             if self.playing:
+                # WAIT UNTIL NEXT FRAME DUE
+                while time.time()<next_frame_due:
+                    time.sleep(0.01)
+                next_frame_due=next_frame_due+seconds_per_frame
+
+
+                # DUMP A FRAME
+                if not SKIP_ALTERNATE_FRAMES:
+                    ret,frame=self.cap.read()
+                    self.frame_no+=1
+
+
                 ret,frame=self.cap.read()
 
+                
                 self.frame_no+=1
 
                 if last_frame is not None and self.frame_no>=last_frame:
@@ -120,15 +172,6 @@ class Player:
 
 
                     if not supress_second_monitor:
-                        capname="CAP"
-                        
-                        cv2.namedWindow(capname, cv2.WND_PROP_FULLSCREEN)
-                        
-                        cv2.moveWindow(capname, fullscreen_x_offset, fullscreen_y_offset)
-                        cv2.setWindowProperty(capname, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
-                        cv2.resizeWindow(capname, int(self.width*zoom), int(self.height*zoom))
-
-
 
                         cv2.imshow(capname, frame) 
 
@@ -136,12 +179,11 @@ class Player:
 
 
 
-                    controlwin="CTRL"
-                    cv2.namedWindow(controlwin,cv2.WINDOW_NORMAL)
-                    ctrlw,ctrlh=int(self.width*CONTROL_MONITOR_ZOOM),int(self.height*CONTROL_MONITOR_ZOOM)
-                    self.smallframe=cv2.resize(frame,(ctrlw,ctrlh))
                     
-                    cv2.resizeWindow(controlwin,ctrlw,ctrlh)
+                    
+                    # Make the small frame
+                    self.smallframe=cv2.resize(frame,(ctrlw,ctrlh))
+                    #self.smallframe=frame
 
 
                     self.proportion=self.frame_no/self.length_frames
@@ -162,21 +204,21 @@ class Player:
                     self.timecode=f"{minutes:02}:{seconds:02}:{fraction:02}"
 
 
-                    cv2.putText(self.smallframe,self.timecode,(20,200),0,4,(255,255,0),4)
-                    cv2.putText(self.smallframe,IP,(20,int(ctrlh-100)),0,1,(255,0,0),2)
-                    cv2.putText(self.smallframe,"R=restart, S=Skip, SPACE=pause, Q=Back to countdown, Z=exit",(20,int(ctrlh-50)),0,1,(255,0,0),2)
+                    cv2.putText(self.smallframe,self.timecode,(0,100),0,2,(255,255,0),4)
+                    cv2.putText(self.smallframe,IP,(0,int(ctrlh-20)),0,0.5,(255,0,0),1)
+                    cv2.putText(self.smallframe,"R=restart, S=Skip, SPACE=pause, Q=Back to countdown, Z=exit",(0,int(ctrlh-10)),0,0.3,(255,0,0),1)
                     
                     
-                    cv2.rectangle(self.smallframe,(0,0),(ctrlw-1,int(ctrlh/30-1)),(50,50,50),3)
-                    cv2.rectangle(self.smallframe,(0,int(0)),(propx,int(ctrlh/30-1)),(255,255,0),3)
+                    #cv2.rectangle(self.smallframe,(0,0),(ctrlw-1,int(ctrlh/30-1)),(50,50,50),3)
+                    #cv2.rectangle(self.smallframe,(0,int(0)),(propx,int(ctrlh/30-1)),(255,255,0),3)
 
-
-                    cv2.imshow(controlwin,self.smallframe)
+                    if USE_LAPTOP_SCREEN:
+                        cv2.imshow(controlwin,self.smallframe)
                     
-            # Press Q on keyboard to exit 
-            fullpress=cv2.waitKeyEx(25)
+            # Press z on keyboard to exit 
+            fullpress=cv2.waitKeyEx(1)
             key= fullpress & 0xFF
-            print(self.frame_no,fullpress,key)
+            #print(self.frame_no,fullpress,key)
 
 
             # Skip the track
