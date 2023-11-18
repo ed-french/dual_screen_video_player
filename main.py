@@ -215,7 +215,11 @@ class Player:
 
                     if USE_LAPTOP_SCREEN:
                         cv2.imshow(controlwin,self.smallframe)
-                    
+            
+            else:
+                # Paused:
+                next_frame_due=time.time()
+
             # Press z on keyboard to exit 
             fullpress=cv2.waitKeyEx(1)
             key= fullpress & 0xFF
