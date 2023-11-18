@@ -164,6 +164,7 @@ class Player:
                 self.frame_no+=1
 
                 if last_frame is not None and self.frame_no>=last_frame:
+                    print("Playback stopping as last frame limit reached")
                     break
 
 
@@ -224,10 +225,12 @@ class Player:
             # Skip the track
 
             if  key== ord('s') or key==27: 
+                print("Playback stopping due to escape or s key")
                 break
 
             elif g_player.skip_requested:
                 g_player.skip_requested=False
+                print("Playback stopping due to remote skip request")
                 break
 
             
@@ -246,6 +249,7 @@ class Player:
             # close the application
 
             elif key == ord('z'):
+                print("Playback stopping due to z press quit")
                 self.cap.release()
                 cv2.destroyAllWindows()
                 return False
@@ -280,14 +284,18 @@ class Player:
                     self.frame_no=0
                 else:
                     g_player.skip_requested=False
+                    print("Playback stopping due to remote countdown request")
                     break
 
             elif key == ord('q'):
                 if self.title=="Countdown":
                     self.cap.set(cv2.CAP_PROP_POS_FRAMES, 0-1)
                     self.frame_no=0
+                    print("Returning to start of countdown due to Q press")
                 else:
                     g_player.skip_requested=False
+
+                    print("Playback stopping due to Q press")
                     break
             
 
@@ -327,8 +335,15 @@ def timecode():
 
 @app.route("/pause")
 def pause():
-    if not request.query_string=="setup":
+    if not request.query_string==b"setup":
         g_player.pause_requested=True
+        print("***************\nPAUSING\n***************")
+        
+    else:
+        print("Not pausing")
+
+
+
     return   """        <button class="active"
                             accesskey="P"
                             hx-get="/pause"
@@ -340,8 +355,15 @@ def pause():
 
 @app.route("/restart")
 def restart():
-    if not request.query_string=="setup":
+    if not request.query_string==b"setup":
         g_player.restart_requested=True
+        
+        print("***************\RESTARTING\n***************")   
+        
+    else:
+        print("Not restarting")
+
+
     return """       <button class="active"
                 accesskey="R"
                 hx-get="/restart"
@@ -353,8 +375,12 @@ def restart():
 
 @app.route("/countdown")
 def countdown():
-    if not request.query_string=="setup":
+    print(f"QUery string: {request.query_string}")
+    if not request.query_string==b"setup":
         g_player.countdown_requested=True
+        print("**************************\nBACK TO COUNTDOWN\n****************")
+    else:
+        print("No returning to countdown as it's a setup request")
     return """        <button class="active"
                 accesskey="C"
                 hx-get="/countdown"
@@ -366,8 +392,12 @@ def countdown():
 
 @app.route("/skip")
 def skip():
-    if not request.query_string=="setup":
+    if not request.query_string==b"setup":
         g_player.skip_requested=True
+        print("***************\nSKIPPING\n***************")
+        
+    else:
+        print("Not skipping, it's a setup")
 
 
 
@@ -386,6 +416,8 @@ def ctrlframe():
     """
         Return latest smallframe
     """
+    if g_player.smallframe is None:
+        return Response("Failed",505)
     is_success,buffer=cv2.imencode(".jpg",g_player.smallframe)
     buff = io.BytesIO(buffer)
     buff.seek(0)
